@@ -24,10 +24,14 @@ export default function App(){
     async function realizarSorteio() {
         try{
             //const jsonValue = await AsyncStorage.getItem('contact_list')//busca lista de contatos e armazena em jsonValue
+            const smsIsAvailable = await SMS.isAvailableAsync()
+            console.log('isAvailable = ', smsIsAvailable)
+
             const jsonValue = contactsList.filter(c => c.checked);
             console.log('CHECKEDS = ', jsonValue);
 
-            if (jsonValue != null){                
+            if (jsonValue != null){ 
+                               
                 //const parsed = JSON.parse(jsonValue)//converte string para JSON                
                 let participantes: IContact[] = jsonValue;//array de objetos IContact
 
@@ -59,6 +63,21 @@ export default function App(){
                     Alert.alert('Atenção', 'Numero inssuficiente de participantes')
                 }
                 
+                if (smsIsAvailable) {
+                    /*participantes.forEach(p => {
+                        const { result } = await SMS.sendSMSAsync ([p.number], 'Seu amigo secreto é: ');
+                        console.log('result = ', result)
+                    })*/
+
+                    for (const p of participantes) {
+                        try {
+                            const { result } = await SMS.sendSMSAsync ([p.number], 'Seu amigo secreto é: '+buscaNomePorId(p.idFriend));
+                            console.log('result = ', result)
+                        } catch (e) {
+                            console.error('erro ao enviar sms ', e)}
+                    }                    
+                }
+                
             } else {
                 Alert.alert('Atenção', 'Nenhum contato encontrado')
             }
@@ -69,6 +88,14 @@ export default function App(){
             console.log("erro realizar sorteio: ", e)
             setLoading(false)
         }
+    }
+
+    function buscaNomePorId(id) {
+        if (id != null) {
+            let contato = contactsList.find(c => c.id === id);
+            return contato?.name;
+        }
+        return null
     }
 
     const renderItem = ({ item }: { item: IContact }) => (
