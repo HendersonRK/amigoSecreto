@@ -14,7 +14,6 @@ import { IconFeather } from '../components/IconFeather';
 // expo router sempre exporta DEFAULT
 export default function App(){
     const [contactsList, setContactsList] = useState<IContact[]>([]);
-    const [sorteioList, setSorteioList] = useState<IContact[]>([]);
     const [loading, setLoading] = useState(false);
     const modalizeRef = useRef<Modalize>(null);
 
@@ -24,11 +23,13 @@ export default function App(){
 
     async function realizarSorteio() {
         try{
-            const jsonValue = await AsyncStorage.getItem('contact_list')//busca lista de contatos e armazena em jsonValue
+            //const jsonValue = await AsyncStorage.getItem('contact_list')//busca lista de contatos e armazena em jsonValue
+            const jsonValue = contactsList.filter(c => c.checked);
+            console.log('CHECKEDS = ', jsonValue);
 
             if (jsonValue != null){                
-                const parsed = JSON.parse(jsonValue)//converte string para JSON                
-                let participantes: IContact[] = parsed;//array de objetos IContact
+                //const parsed = JSON.parse(jsonValue)//converte string para JSON                
+                let participantes: IContact[] = jsonValue;//array de objetos IContact
 
                 if (participantes.length > 2) { //se há mais de 3 contatos realiza o sorteio                    
                     let sorteados : number[] = [];//array dos ids dos participantes sorteados
@@ -72,10 +73,14 @@ export default function App(){
 
     const renderItem = ({ item }: { item: IContact }) => (
         <View style={[themes.paddingTop, themes.paddingLeft]}>
-            <Text style={themes.title}><IconFeather name="square" size={24} /> {item.name} - {item.number}</Text>
+            <TouchableOpacity
+            onPress={() => updateItem(item.id)}>
+                <Text style={themes.title}><IconFeather name={item.checked ? "check-square" : "square"} size={24} /> {item.name} - {item.number}</Text>
+            </TouchableOpacity>
         </View>
     );
         
+    //busca os contatos no storage
     const getData = async (): Promise<IContact[]> => {
         try {
 
@@ -97,13 +102,12 @@ export default function App(){
     const updateItem = (id: number) => {
         try {
             //verifica se o ID passado como parametro é igual ao ID do item
-            const newList = contactsList.map(item =>
+            const newList = contactsList.map(contact =>
                 //'...item' cópia todos os atributos do item e altera apenas o checked
-                (item.id === id) ? {...item, checked: !item.checked} : { ...item } 
+                (contact.id === id) ? {...contact, checked: !contact.checked} : { ...contact } 
             )
 
-            setSorteioList(newList);
-            //storeData(newList);
+            setContactsList(newList);
 
         } catch (err) {
             console.log("🚀 ~ updateItem ~ err:", err)
