@@ -1,19 +1,21 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { Text, TouchableOpacity, SafeAreaView, View } from "react-native"
-import { themes } from "../themes/global"
-import AntDesign from '@expo/vector-icons/AntDesign';
-import Feather from '@expo/vector-icons/Feather';
+import React, { useEffect, useRef, useState } from "react";
+import { Text, TouchableOpacity, SafeAreaView, View, Alert, ActivityIndicator } from "react-native"
+import { Modalize } from "react-native-modalize";
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { router } from "expo-router"
+import * as SMS from 'expo-sms';
+import { themes } from "../themes/global"
 import { IContact } from "../@types/contact";
-import React, { useEffect, useRef, useState } from "react";
-import { Modalize } from "react-native-modalize";
+import { IconAntDesign } from '../components/IconAntDesign';
+import { IconFeather } from '../components/IconFeather';
 
 
 // expo router sempre exporta DEFAULT
 export default function App(){
     const [contactsList, setContactsList] = useState<IContact[]>([]);
     const [sorteioList, setSorteioList] = useState<IContact[]>([]);
+    const [loading, setLoading] = useState(false);
     const modalizeRef = useRef<Modalize>(null);
 
     const onOpen = () => {
@@ -22,51 +24,58 @@ export default function App(){
 
     async function realizarSorteio() {
         try{
-            const jsonValue = await AsyncStorage.getItem('contact_list')
+            const jsonValue = await AsyncStorage.getItem('contact_list')//busca lista de contatos e armazena em jsonValue
 
-            if (jsonValue != null){
-                const parsed = JSON.parse(jsonValue)
-                let participantes: IContact[] = parsed;
-                let sorteados : number[] = [];
-                let notSort;
+            if (jsonValue != null){                
+                const parsed = JSON.parse(jsonValue)//converte string para JSON                
+                let participantes: IContact[] = parsed;//array de objetos IContact
 
-                for (let index = 0; index < participantes.length; index++) {
-                    notSort = true
+                if (participantes.length > 2) { //se há mais de 3 contatos realiza o sorteio                    
+                    let sorteados : number[] = [];//array dos ids dos participantes sorteados
+                    let notSort: boolean;
                     
-                    while (notSort) {
-                        const random = parseInt((Math.random() * participantes.length).toString());
+                    for (let index = 0; index < participantes.length; index++) {//parcorre a lista de participantes
+                        notSort = true
                         
-                        if (random !== index && !sorteados.includes(random)) {
-                            participantes[index].idFriend = (random+1)
-                            sorteados.push(random);
-                            notSort = false;
+                        while (notSort) {
+                            const random = parseInt((Math.random() * participantes.length).toString());
+                            
+                            if (random != index && !sorteados.includes(random)) {
+                                participantes[index].idFriend = participantes[random].id;
+                                sorteados.push(random);
+                                notSort = false;
+                            } else if (random === index && index === participantes.length - 1) {
+                                console.log ("o ultimo pegou o ultimo")
+                                participantes[index].idFriend = participantes[0].idFriend
+                                participantes[0].idFriend = participantes[random].id
+                                sorteados.push(random);
+                                notSort = false;
+                            }
                         }
                     }
+                    console.log('Soteio = ', participantes)
+                } else {
+                    Alert.alert('Atenção', 'Numero inssuficiente de participantes')
                 }
-                console.log('Soteio = ', participantes)
+                
+            } else {
+                Alert.alert('Atenção', 'Nenhum contato encontrado')
             }
 
-        }catch (e) {
+            setLoading(false)
+
+        } catch (e) {
             console.log("erro realizar sorteio: ", e)
+            setLoading(false)
         }
     }
 
     const renderItem = ({ item }: { item: IContact }) => (
         <View style={[themes.paddingTop, themes.paddingLeft]}>
-            <Text style={themes.title}><Feather name="square" size={24} color="black" /> {item.name} - {item.number}</Text>
+            <Text style={themes.title}><IconFeather name="square" size={24} /> {item.name} - {item.number}</Text>
         </View>
     );
-    
-    const storeData = async (value: IContact[]) => {
-        try {
-            const jsonValue = JSON.stringify(value);
-            await AsyncStorage.setItem('contact_list', jsonValue);
-        } catch (e) {
-            // saving error
-            console.log("🚀 ~ storeData ~ e:", e);
-        }
-    };
-    
+        
     const getData = async (): Promise<IContact[]> => {
         try {
 
@@ -89,6 +98,7 @@ export default function App(){
         try {
             //verifica se o ID passado como parametro é igual ao ID do item
             const newList = contactsList.map(item =>
+                //'...item' cópia todos os atributos do item e altera apenas o checked
                 (item.id === id) ? {...item, checked: !item.checked} : { ...item } 
             )
 
@@ -111,8 +121,9 @@ export default function App(){
 
     }, []);
 
-    return (
+    return (     
         <GestureHandlerRootView>
+                
             <SafeAreaView style={themes.container}>
 
                 <Text style={themes.title}>App sorteiro amigo secreto</Text>
@@ -120,13 +131,15 @@ export default function App(){
                 <TouchableOpacity 
                     onPress={() => router.navigate('contacts')}
                     style={[themes.button, themes.marginBottom]}>
-                    <Text><AntDesign name="contacts" size={24} color="black" /> Contatos</Text>
+                    <Text><IconAntDesign name="contacts" size={24} /> Contatos</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                    onPress={() => realizarSorteio()}
+                    onPress={() => {
+                        setLoading(true);
+                        setTimeout(realizarSorteio, 2000)}}
                     style={[themes.button, themes.marginBottom]}>
-                    <Text><Feather name="globe" size={24} color="black" /> Realiza Sorteio</Text>
+                    <Text><IconFeather name="globe" size={24}/> Realiza Sorteio</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
@@ -134,7 +147,9 @@ export default function App(){
                     style={[themes.button, themes.marginBottom]}>
                     <Text>Exemplo Modal</Text>
                 </TouchableOpacity>
-                
+
+                {loading && <ActivityIndicator size="large" />}
+                    
                 <Modalize                     
                     ref={modalizeRef} 
                     avoidKeyboardLikeIOS 
@@ -147,6 +162,6 @@ export default function App(){
                 </Modalize>
 
             </SafeAreaView>
-        </GestureHandlerRootView>
-       )
+        </GestureHandlerRootView>        
+    )
 }

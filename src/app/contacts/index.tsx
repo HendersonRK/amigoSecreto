@@ -13,11 +13,19 @@ export default function Contacts() {
     const [contactsList, setContactsList] = useState<IContact[]>([]);
 
     const save = () => {
+        let maxId = 0;
+        contactsList.forEach(item => {
+            if (item.id > maxId) {
+                maxId = item.id;
+            }
+        })
+
         const newList = [...contactsList,
             {
-                id: contactsList.length + 1,
+                id: maxId + 1,
                 name: contact.name,
                 number: contact.number,
+                checked: contact.checked
             }
         ];
 
@@ -103,7 +111,6 @@ export default function Contacts() {
     }*/
 
     useEffect(() => {
-
         const fetchData = async () => {
             const fetch = await getData();
             setContactsList(fetch);
